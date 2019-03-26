@@ -1,54 +1,51 @@
+#include <DHT.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 
 #define ssid "free"         // WiFi SSID
 #define password "12345678" // WiFi password
-/* #define DHTTYPE DHT22        // DHT type (DHT11, DHT22) */
-/* #define DHTPIN D4            // Broche du DHT / DHT Pin */
-#define LEDPIN D8   // Led
-#define FIREPIND D2 // Led
-#define FIREPINA D1 // Led
+#define DHTTYPE DHT11       // DHT type (DHT11, DHT22)
+#define DHTPIN D4           // Broche du DHT / DHT Pin
+#define LEDPIN D3           // Led
+#define COPIN A0
+#define FIREPIN D2
 float t = 0;
 float h = 0;
-float s = 0;
-String p = "out of danger";
+double p = 0;
 String etatLed = "OFF";
 
 // Création des objets / create Objects
+DHT dht(DHTPIN, DHTTYPE);
 
 ESP8266WebServer server(80);
 
 String getPage() {
     String page =
-        "<html lang=en-US><head><meta http-equiv='refresh' content='10'/>";
-    page += "<title>ESP8266 </title>";
+        "<html lang=en-us><head><meta http-equiv='refresh' content='10'/>";
+    page += "<title>LED</title>";
     page += "<style> body { background-color: #fffff; font-family: Arial, "
             "Helvetica, Sans-Serif; Color: #000088; }</style>";
-    page += "</head><body><h1>ESP8266</h1>";
-    page += "<h3>DHT11</h3>";
+    page += "</head><body><h1>BS</h1>";
+    page += "<h3>DHT22</h3>";
     page += "<ul><li>Temperature : ";
     page += t;
     page += "°C</li>";
     page += "<li>Humidite : ";
     page += h;
-    page += "%</li></ul><h3>light</h3>";
-    page += "<ul><li>Pression atmospherique : ";
+    page += "%</li></ul><h3>CO</h3>";
+    page += "<ul><li>co : ";
     page += p;
-    page += "</li></ul>";
-    page += "%</li></ul><h3>light</h3>";
-    page += "<ul><li>strength : ";
-    page += analogRead(FIREPINA);
-    page += "</li></ul>";
-    page += "<h3>GPIO</h3>";
+    page += " PPM</li></ul>";
+    page += "<h3>LED</h3>";
     page += "<form action='/' method='POST'>";
-    page += "<ul><li>D3 (etat: ";
+    page += "<ul><li>LED (etat: ";
     page += etatLed;
     page += ")";
     page += "<INPUT type='radio' name='LED' value='1'>ON";
     page += "<INPUT type='radio' name='LED' value='0'>OFF</li></ul>";
     page += "<INPUT type='submit' value='Actualiser'>";
-    page += "<br><br><p><a hrf='https://diyprojects.io'>diyprojects.io</p>";
+    page += "<br><br><p>FINISH</p>";
     page += "</body></html>";
     return page;
 }
@@ -82,8 +79,8 @@ void setup() {
     // Initialisation du BMP180 / Init BMP180
 
     pinMode(LEDPIN, OUTPUT);
-    pinMode(FIREPIND, INPUT);
-    pinMode(FIREPINA, INPUT);
+    pinMode(FIREPIN, INPUT);
+    digitalWrite(FIREPIN, 1);
     WiFi.begin(ssid, password);
     // Attente de la connexion au réseau WiFi / Wait for connection
     while (WiFi.status() != WL_CONNECTED) {
@@ -117,17 +114,19 @@ void led() {
     if (server.arg("LED") == "1") {
         digitalWrite(LEDPIN, 1);
     } else if (server.arg("LED") == "0") {
-        digitalWrite(LEDPIN, backValue(FIREPIND));
+        digitalWrite(LEDPIN, backValue(FIREPIN));
+    } else {
+        digitalWrite(LEDPIN, 0);
     }
 }
+
 void loop() {
-    if (backValue(FIREPIND)) {
-        p = "under danger";
-    } else {
-        p = "out of danger";
-    }
-    s = analogRead(FIREPINA);
-    led();
     server.handleClient();
-    delay(100);
+    led();
+
+    t = dht.readTemperature();
+    h = dht.readHumidity();
+    p = 10 + analogRead(COPIN) * 990 / 1024;
+
+    delay(1000);
 }
